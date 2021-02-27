@@ -4,3 +4,4 @@ data science bootcamp projects with python codes
 - exploratory data analysis with pandas
 - level based persona
 - grab col names and summary function
+- customer segmentation with rfm
