@@ -1,0 +1,91 @@
+#############################################
+# PROJE: LEVEL BASED PERSONA TANIMLAMA, BASIT SEGMENTASYON ve KURAL TABANLI SINIFLANDIRMA
+#############################################
+
+# 1. users ve purchases veri setlerini okutunuz ve veri setlerini "uid" değişkenine göre inner join ile merge ediniz.
+
+import pandas as pd
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+users = pd.read_csv('/datasets/users.csv')
+purchases = pd.read_csv('/datasets/purchases.csv')
+df = purchases.merge(users, how='inner', on='uid')
+df.head()
+
+# 2. country, device, gender, age kırılımında toplam kazançlar nedir?
+df.groupby(by=["country", 'device', "gender", "age"]).agg({"price": "sum"})
+
+# 3. Çıktıyı daha iyi görebilmek için kod'a sort_values metodunu azalan olacak şekilde price'a göre uygulayınız.
+# Çıktıyı agg_df olarak kaydediniz.
+agg_df = df.groupby(by=["country", 'device', "gender", "age"]).agg({"price": "sum"}).sort_values("price", ascending=False)
+agg_df.head()
+
+# 4. agg_df'in index'lerini değişken ismine çeviriniz.
+# Üçüncü sorunun çıktısında yer alan price dışındaki tüm değişkenler index isimleridir.
+# Bu isimleri değişken isimlerine çeviriniz.
+# İpucu: reset_index()
+
+agg_df = agg_df.reset_index()
+
+# 5. age değişkenini kategorik değişkene çeviriniz ve agg_df'e ekleyiniz.
+
+# Öylesine bir bakalım age'in dağılımı nasıl.
+agg_df["age"].describe([0.10, 0.25, 0.50, 0.75, 0.80, 0.90, 0.95])
+# Yaşın kategorilerinin ne olacağını yani hangi değerlerden bölüneceğini seçelim belirtelim:
+bins = [0, 19, 24, 31, 41, agg_df["age"].max()]
+# bins'lere karşılık isimlendirmelerin ne olacağını ifade edelim:
+mylabels = ['0_18', '19_23', '24_30', '31_40', '41_' + str(agg_df["age"].max())]
+# age'i bölelim:
+agg_df["age_cat"] = pd.cut(agg_df["age"], bins, labels=mylabels)
+agg_df.head()
+
+
+# 6. Yeni level based müşterileri tanımlayınız ve veri setine değişken olarak ekleyiniz.
+
+# değişken isimleri:
+agg_df.columns
+
+# değişkenlerde yer alan değerlere nasıl erişiriz?
+for row in agg_df.values:
+    print(row)
+
+# Burada price hariç diğer değerleri yan yana koymak ve alt tireyle birleştirmek istiyoruz.
+# Bunu döngü yerine list comprehension ile yapabiliriz.
+# Hedefimizi hatırlayalım:
+
+#   customers_level_based      price
+# 0        USA_AND_M_0_18 157120.000
+# 1        USA_AND_F_0_18 151121.000
+# 2        BRA_AND_M_0_18 149544.000
+# 3        USA_IOS_F_0_18 133773.000
+# 4       USA_AND_F_19_23 133645.000
+
+# Öyleyse yukarıdaki döngüden her değeri değil bazılarını seçeceğiz:
+
+[row[0] + "_" + row[1].upper() + "_" + row[2] + "_" + row[5] for row in agg_df.values]
+
+# Veri setine ekleyelim:
+agg_df["customers_level_based"] = [row[0] + "_" + row[1].upper() + "_" + row[2] + "_" + row[5] for row in agg_df.values]
+agg_df.head()
+
+# Gereksiz değişkenleri çıkaralım:
+agg_df = agg_df[["customers_level_based", "price"]]
+agg_df.head()
+
+# eger isimleri birleştirme problemi index'lerde olsaydı:
+# agg_df.index = pd.Index(
+#     [e[0] + "_" + e[1].upper() + "_" + e[2] + "_" + e[3] for e in agg_df.index.tolist()])
+# agg_df = agg_df.reset_index().rename(columns={"index": "customers_level_based"})
+# agg_df.head()
+
+# 7. Yeni müşterileri price'a göre segmentlere ayırınız, segmentleri "segment" isimlendirmesi ile agg_df'e ekleyiniz
+# ve segmentleri betimleyiniz.
+
+agg_df["segment"] = pd.qcut(agg_df["price"], 4, labels=["D", "C", "B", "A"])
+agg_df.head(10)
+agg_df.groupby("segment").agg({"price": "mean"})
+
+
+# 8. 42 yaşında IOS kullanan bir Türk kadını hangi segmente aittir?
+new_user = "TUR_IOS_F_41_75"
+agg_df[agg_df["customers_level_based"] == new_user]
