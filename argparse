@@ -1,1 +1,13 @@
+import argparse
 
+ap = argparse.ArgumentParser()
+
+ap.add_argument("--sayi1",required=True, help="sayi1 giriniz! --sayi1 integer değer ile")
+ap.add_argument("--sayi2",required=True, help="sayi2 giriniz! --sayi2 integer değer ile")
+
+args = vars(ap.parse_args()) #{"sayi1":<var>, "sayi2":<var>}
+
+a = int(args["sayi1"])
+b = int(args["sayi2"])
+
+print(a+b)
