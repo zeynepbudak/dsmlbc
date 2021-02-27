@@ -1,0 +1,29 @@
+import pandas as pd
+
+def grab_col_names(dataframe):
+    categorical_cols = [col for col in dataframe.columns if dataframe[col].dtypes == 'O']
+    numerical_cols = [col for col in dataframe.columns if dataframe[col].dtypes != 'O']
+    return categorical_cols, numerical_cols
+
+
+df = pd.read_csv("datasets/titanic.csv")
+cat_cols, num_cols = grab_col_names(df)
+print(cat_cols)
+print(num_cols)
+
+def summary(dataframe):
+    categorical_cols = [col for col in dataframe.columns if dataframe[col].dtypes == 'O']
+    numeric_cols = [col for col in dataframe.columns if dataframe[col].dtypes != 'O']
+    num_but_cat_cols = [col for col in dataframe.columns
+                        if len(dataframe[col].unique()) <= 20
+                        and dataframe[col].dtypes != 'O']
+    cat_but_car = [col for col in dataframe.columns
+                   if len(dataframe[col].unique()) > 20
+                   and dataframe[col].dtypes == 'O']
+    print(f" Observations: {dataframe.shape[0]}")
+    print(f" Variables: {dataframe.shape[1]}")
+    print(f" Categorical Variables: {len(categorical_cols)} (Cat but Car Variables: {len(cat_but_car)})")
+    print(f" Numerical Variables: {len(numeric_cols)} (Num but Cat Variables: {len(num_but_cat_cols)})")
+
+
+summary(df)
