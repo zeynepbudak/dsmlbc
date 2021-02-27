@@ -1,0 +1,38 @@
+# 1. users ve purchases veri setlerini okutunuz ve veri setlerini "uid" değişkenine göre inner join ile merge edelim.
+
+import pandas as pd
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+users = pd.read_csv('../../datasets/users.csv')
+purchases = pd.read_csv('../../datasets/purchases.csv')
+df = purchases.merge(users, how='inner', on='uid')
+df.head()
+
+# 2. Kaç unique müşteri vardır?
+df["uid"].nunique()
+df["uid"].value_counts().size
+
+# 3. Kaç unique fiyatlandırma var?
+df["price"].nunique()
+
+# 4. Hangi fiyattan kaçar tane satılmış?
+df["price"].value_counts()
+
+# 5. Hangi ülkeden kaçar tane satış olmuş?
+df["country"].value_counts()
+
+# 6. Ülkelere göre satışlardan toplam ne kadar kazanılmış?
+df.groupby("country")["price"].sum()
+df.groupby("country").agg({"price":"sum"})
+
+# 7. Device türlerine göre göre satış sayıları nedir?
+df["device"].value_counts()
+
+# 8. ülkelere göre fiyat ortalamaları nedir?
+df.groupby(by=['country']).agg({"price": "mean"})
+
+# 9. Cihazlara göre fiyat ortalamaları nedir?
+df.groupby(by=['device']).agg({"price": "mean"})
+
+# 10. Ülke-Cihaz kırılımında fiyat ortalamaları nedir?
+df.groupby(by=["country", 'device']).agg({"price": "mean"})
