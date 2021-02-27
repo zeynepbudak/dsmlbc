@@ -1,0 +1,108 @@
+##########################################################
+# Customer Lifetime Value (CLTV) Calculation
+##########################################################
+
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+
+pd.set_option('display.max_columns', None)
+
+df_ = pd.read_excel("datasets/online_retail_II.xlsx",
+                    sheet_name="Year 2010-2011")
+df = df_.copy()
+df.head()
+
+# VERIYI HAZIRLAMA
+
+## Oncelikle Invoice yani fatura numarasi C ile baslayan iadeleri cikararak df'yi yeniden olusturalim:
+df = df[~df["Invoice"].str.contains("C", na=False)]
+
+## Urun adedi sifir olan hatali kayitları dahil etmeyelim:
+df = df[(df['Quantity'] > 0)]
+
+df.dropna(inplace=True)
+
+## Urunun birim fiyati ve satin alinan miktari carparak toplam fiyati hesaplayalim:
+df["TotalPrice"] = df["Quantity"] * df["Price"]
+
+# FORMULASYON:
+
+# CLTV = (Customer_Value / Churn_Rate) x Profit_margin.
+# Customer_Value = Average_Order_Value * Purchase_Frequency
+# Average_Order_Value = Total_Revenue / Total_Number_of_Orders
+# Purchase_Frequency =  Total_Number_of_Orders / Total_Number_of_Customers
+# Churn_Rate = 1 - Repeat_Rate
+# Profit_margin
+
+# Average_Order_Value = Total_Revenue / Total_Number_of_Orders
+
+cltv_df = df.groupby('Customer ID').agg({'Invoice': lambda x: len(x),
+                                         'Quantity': lambda x: x.sum(),
+                                         'TotalPrice': lambda x: x.sum()})
+
+cltv_df.columns = ['total_transaction', 'total_unit', 'total_price']
+cltv_df.head()
+
+cltv_df['avg_order_value'] = cltv_df['total_price'] / cltv_df['total_transaction']
+
+# Purchase_Frequency =  Total_Number_of_Orders / Total_Number_of_Customers
+
+cltv_df.shape    # (4339, 3)
+
+cltv_df.shape[0]  # Toplam musteri sayisi = 4339
+
+cltv_df["purchase_frequency"] = cltv_df['total_transaction'] / cltv_df.shape[0]
+
+# Churn_Rate = 1 - Repeat_Rate
+
+# Geri gelen musteri orani'repeat rate'i hesaplamak icin 1 den fazla alisveris yapan musteri sayisini toplam musteri sayisina boleriz. 
+# Sadece 1 kez alisveris yapan musteriyi kaybettigimiz musteri olarak dusunebiliriz
+# Bir daha siteye alisveris yapmak icin ugramamis.
+
+repeat_rate = cltv_df[cltv_df.total_transaction > 1].shape[0] / cltv_df.shape[0]
+churn_rate = 1 - repeat_rate
+
+cltv_df['profit_margin'] = cltv_df['total_price'] * 0.05
+
+# CLTV = (Customer_Value / Churn_Rate) x Profit_margin.
+
+cltv_df['CV'] = (cltv_df['avg_order_value'] * cltv_df["purchase_frequency"]) / churn_rate
+cltv_df['CLTV'] = cltv_df['CV'] * cltv_df['profit_margin']
+cltv_df.head()
+
+# CLTV degiskenini daha iyi okuyabilmek icin float formati:
+pd.set_option('display.float_format', lambda x: '%.5f' % x)
+cltv_df.head()
+
+# En iyi musterilerimizi gormek icin veri setini CLTV degiskenine gore buyukten kucuge siralayalim:
+cltv_df.sort_values("CLTV", ascending=False)
+cltv_df.head()
+
+# MinMaxScaler fonsiyonu ile 1 ile 100 arasindaki sayilari temsil eden bir scaler degiskeni tanimlayalim:
+scaler = MinMaxScaler(feature_range=(1, 100))
+
+# CLTV deki degerleri; 1 ile 100 arasindaki sayilara gore fit'leyelim ve bir nesne olarak tutalim.
+scaler.fit(cltv_df[["CLTV"]])
+
+# Hesapladigimiz nesneyi kullanarak CLTV degiskenine donusum uygulayalim yani standartlastiralim ve yeni degerleri SCALED_CLTV degiskenine atalim:
+cltv_df["SCALED_CLTV"] = scaler.transform(cltv_df[["CLTV"]])
+
+# Veriyi SCALED_CLTV degiskenine gore buyukten kucuge gorelim:
+cltv_df[["total_transaction", "total_unit", "total_price", "CLTV", "SCALED_CLTV"]].sort_values(by='SCALED_CLTV',
+                                                                                           ascending=False).head()
+# Veriyi SCALED_CLTV degiskenine gore segmentlere ayiralim:
+cltv_df["segment"] = pd.qcut(cltv_df["SCALED_CLTV"], 4, labels=["D", "C", "B", "A"])
+
+cltv_df[["total_transaction", "total_unit", "total_price", "CLTV", "SCALED_CLTV", "segment"]].sort_values(
+    by="SCALED_CLTV",
+    ascending=False).head()
+
+cltv_df.groupby("segment")[["total_transaction", "total_unit", "total_price", "CLTV", "SCALED_CLTV"]].agg(
+    {"count", "mean", "sum"})
+
+# A segmentine sahip musterilerin Customer ID'lerini bir Data Frame'e atalim ve oradan excel dosyasina export edelim:
+new_df = pd.DataFrame()
+
+new_df["A_Segmenti"] = cltv_df[cltv_df["segment"] == "A"].index
+
+new_df.to_csv("A_Segmenti.csv")
